@@ -1,0 +1,226 @@
+<html>
+<header>
+<style>
+#dbs,#csvs,#twitter
+{
+    
+    margin-right: auto;
+    margin-top: 2%;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 10px;
+    border-color: #008040;
+    overflow: hidden;
+}
+
+
+
+.subdiv
+{   width:20%; 
+    border-width: 1px;
+    border-color: #000;
+    border-style: solid;
+    float:left;
+}
+
+.colorToggle {
+      background: #A6D785;
+      }
+
+</style>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script>
+
+
+</script>
+</header>
+
+<body>
+	<div id ='input_section'>
+		<div id ='dbs'>
+		</div>
+		<div id = 'csvs'>
+		</div>
+		<div id ='twitter'>
+			<form>Enter Topic to Search Tweets About:<br>
+				<input type='text' id='twitter_query'>
+				<input type='button'  value='get' onclick='getTweets()'>
+			</form>
+		</div>
+    </div>
+
+    <button id='tojoin' onclick='moveToJoin()' style='position:fixed; top:50%; right:10px; width:10%; height:10%; background:green; font:10px;'> JOIN </button>
+
+    <div id ='process_section' >
+    </div>
+
+    <div id ='output_section'>
+    	<a href="http://127.0.0.1:8000/">Home</a>
+    </div>
+</body>
+
+<script>
+var base_url = "http://127.0.0.1:8000";
+var toJoin={};
+var sendData={};
+
+$(document).ready(function(){
+
+	    //list all the dbs along with the fields
+        $.ajax({url: base_url+"/get_db_names", success: function(result){
+        	data = JSON.parse(result);
+        	var ct=0;
+            for (var table in data){
+            	var newdiv ='dbs'+ct ;
+            	$('#dbs').append('<div id ="'+newdiv+'" class="subdiv"></div>');
+            	$('#'+newdiv).append('<div  class="tableName">'+table+'</div><br>');
+            	     for (var i=0 ;i< data[table].length;i++){
+            	     	$('#'+newdiv).append('<div id="'+table+'" class="tableField">'+data[table][i]+'</div><br>');
+            	     }
+            	ct+=1;
+            }
+        }});
+
+
+        //list all the csv files and their fields
+        $.ajax({url: base_url+"/csv_files", success: function(result){
+        	data = JSON.parse(result);
+        	var ct=0;
+            for (var table in data){
+            	var newdiv ='csvs'+ct ;
+            	$('#csvs').append('<div id ="'+newdiv+'" class="subdiv"></div>');
+            	$('#'+newdiv).append('<div  class="tableName">'+table+'</div><br>');
+            	     for (var i=0 ;i< data[table].length;i++){
+            	     	$('#'+newdiv).append('<div id="'+table+'" class="tableField"> '+data[table][i]+'</div><br>');
+            	     }
+            	ct+=1;
+            }
+            
+
+        $(".tableField").click(function(event) {
+	      //console.log('clickevent');
+	       var table = $(this).attr('id');
+           var tableField = $(this).text();
+           //console.log(table+","+tableField);
+
+           if(toJoin[table]){
+           	   var index = toJoin[table].indexOf(tableField);
+           	   if(index>-1){
+                   toJoin[table].splice(index, 1);
+           	   }
+           	   else{
+               toJoin[table].push(tableField);
+              }
+            }
+            else{
+             toJoin[table]=[tableField];
+         }
+          $(this).toggleClass('colorToggle');
+        });
+         //console.log(JSON.load(toJoin,true);
+
+
+        }});
+
+
+
+});
+
+
+function intersect_safe(a, b)
+{
+  var results=[];
+  for (var i =0;i<a.length;i++){
+  	 for(var j=0;j<b.length;j++){
+  	 	//ßconsole.log(a[i]+","+b[i]);
+  	 	if(a[i]==b[i])
+  	 		results.push(a[i]);
+  	 }
+  }
+  console.log(results);
+  return results;
+}
+
+
+function moveToJoin(){
+	
+	for (var k in toJoin ){
+	  if(toJoin[k].length>0){
+	  	sendData[k] = toJoin[k];
+	   }
+	}
+	$('#tojoin').hide();
+	var form = "<div id='joinFields' class='colorToggle'><form>Enter Fields for Joining separated by Commas :<br><input id='joinFieldsText' type='text'><input type='button' value='Go!' onclick='showJoined()'>  </form></div>"
+	$('#input_section').prepend(form);
+}
+
+function showJoined(){
+	var _data={'fields' : $('#joinFieldsText').val(),
+	            'dfs': sendData
+               };
+    $.ajax({type: "POST", url:base_url+"/join", data:JSON.stringify(_data),contentType: "application/json; charset=utf-8",
+        dataType: "json", success:function(result){
+         console.log("resp");
+         $('#input_section').html("");
+         $('#process_section').prepend(result);    
+      },error: function(error) {
+                console.log(error);
+                $('#input_section').html("");
+                
+                $('#process_section').prepend(error['responseText']);
+                var form = "<form>Enter Tranform (Sort/group/wordcount(for tweets)): <input  id = 'tranform_type' type='text'> <br> Enter Parameters: <input  id = 'tranform_params' type='text'>.<br> <input type='button' onclick='getTransform()'></form>"
+                $('#process_section').append(form);
+            }
+     });
+
+}
+
+
+function getTweets(){
+	var _data={'topic' : $('#twitter_query').val() };
+	$.ajax({type: "POST", url:base_url+"/twitter", data:JSON.stringify(_data),contentType: "application/json; charset=utf-8",
+        dataType: "json", success:function(result){
+
+         console.log("resp");
+         $('#input_section').html("");
+         $('#process_section').prepend(result);  
+
+      },error: function(error) {
+
+                console.log(error);
+                $('#input_section').html("");
+                $('#tojoin').hide();
+                $('#process_section').append(error['responseText']);
+                var form = "<form>Enter Tranform (Sort/group/wordcount(for tweets)): <input  id = 'tranform_type' type='text'> <br> Enter Parameters: <input  id = 'tranform_params' type='text'>.<br> <input type='button' onclick='getTransform()'></form>"
+                $('#process_section').append(form);
+            }
+     });
+}
+
+
+function getTransform(){
+	var _data={'type' : $('#tranform_type').val(),
+	            'params': $('#tranform_params').val()
+               };
+    $.ajax({type: "POST", url:base_url+"/transform", data:JSON.stringify(_data),contentType: "application/json; charset=utf-8",
+        dataType: "json", success:function(result){
+        	$('#process_section').html("");
+                $('#output_section').append(result);
+
+      },error: function(error) {
+                console.log(error);
+                $('#process_section').html("");
+                $('#output_section').append(error['responseText']);
+            }
+     });
+
+}
+
+
+
+
+
+</script>
+
+</html>
